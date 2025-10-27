@@ -13,12 +13,12 @@ The system was developed as a self-directed portfolio project to strengthen appl
 ---
 
 ## Features
-- **Automated Data Collection:** Scrapes live financial headlines from Yahoo Finance.  
-- **Structured Data Storage:** Saves scraped data into organized CSV files for reuse and reproducibility.  
-- **Machine Learning Classification:** Trains a supervised sentiment classifier (positive / neutral / negative) using a labeled dataset.  
-- **Model Persistence:** Saves trained models (`.pkl` files) for future predictions.  
-- **Extendable Framework:** Ready for integration with Flask for visualization and API endpoints.  
-- **Clear Code Organization:** Separation of concerns across `scraper.py`, `train_model.py`, and future modules for prediction and visualization.
+- **Automated Data Collection:** Scrapes live financial headlines from Yahoo Finance with timestamp and source metadata.  
+- **End-to-End Sentiment Pipeline:** Trains and persists a TF-IDF + logistic regression classifier for positive / neutral / negative labels.  
+- **Batch & Interactive Predictions:** Score new headlines from the command line or trigger analysis inside a Flask web dashboard.  
+- **Structured Data Storage:** Stores raw scrapes and model outputs as CSV files in `data/`.  
+- **Modular Codebase:** Independent scripts for scraping, training, prediction, and the web UI make it easy to extend or automate.  
+- **Portfolio-Ready Documentation:** Includes clear setup steps, usage examples, and future enhancements for continued growth.
 
 ---
 
@@ -27,10 +27,10 @@ The system was developed as a self-directed portfolio project to strengthen appl
 AI-Stock-Sentiment-Analyzer/
 │
 ├── app/
-│   ├── scraper.py           # Scrapes Yahoo Finance headlines
-│   ├── train_model.py       # Trains logistic regression sentiment model
-│   ├── predict.py           # (future) Predicts sentiment of new scraped data
-│   └── dashboard.py         # (future) Flask-based web dashboard for visualization
+│   ├── scraper.py           # Scrape Yahoo Finance headlines and save to data/raw
+│   ├── train_model.py       # Download dataset (via KaggleHub) and train the model
+│   ├── predict.py           # Run batch predictions on the latest scraped headlines
+│   └── web_app.py           # Flask UI to trigger scraping/prediction and view results
 │
 ├── data/
 │   ├── raw/                 # Stores unprocessed scraped data
@@ -84,53 +84,46 @@ pip freeze > requirements.txt
 
 ## Usage
 
-### Step 1 — Scrape financial headlines
-Run the scraping module to collect the latest market headlines:
-
-```bash
-python app/scraper.py
-```
-
-**Output Example:**
-```
-✅ Saved 50 headlines to ../data/raw/news_20251024_1832.csv
-```
-
-The resulting CSV file will be located under `data/raw/` and contain columns:
-- `headline`
-- `timestamp`
-- `source`
-
----
-
-### Step 2 — Train the sentiment model
-Train a logistic regression classifier using a labeled financial dataset:
-
+### One-time: Train (or retrain) the sentiment model
 ```bash
 python app/train_model.py
 ```
 
-**Example Console Output:**
-```
-✅ Loaded 4,800 labeled samples.
-Model accuracy: 89.7%
-💾 Model and vectorizer saved in ../models/
-```
+This downloads the Financial PhraseBank dataset via KaggleHub (if online), cleans the labels, splits the data, trains the logistic regression classifier, and saves both the model and TF-IDF vectorizer to `models/`.
 
-After completion, the trained model and TF-IDF vectorizer are stored in:
-```
-models/sentiment_model.pkl
-models/vectorizer.pkl
-```
+If the Kaggle download fails, place a copy of `all-data.csv` in `data/processed/` and rerun the script.
 
 ---
 
-### Step 3 — (Planned) Predict sentiment of new data
-In the future `predict.py` module, the saved model will be used to:
-- Load new headlines from `data/raw/`
-- Apply preprocessing and vectorization
-- Predict sentiment for each headline
-- Output results with sentiment labels and confidence scores
+### Collect the latest financial headlines
+```bash
+python app/scraper.py
+```
+
+The script saves a timestamped CSV like `data/raw/news_20251024_1832.csv` containing columns `headline`, `timestamp`, and `source`.
+
+---
+
+### Generate predictions from the command line
+```bash
+python app/predict.py
+```
+
+The script loads the latest raw CSV, applies the trained model, prints the first few predictions, and writes the full results to `data/processed/predictions_<timestamp>.csv`.
+
+---
+
+### Use the interactive Flask dashboard
+```bash
+python -m app.web_app
+```
+
+Open `http://127.0.0.1:5000/` in your browser to:
+- Scrape fresh headlines with **Scrape Latest News**
+- Run inference with **Analyze Sentiment**
+- Review the most recent predictions and sentiment distribution
+
+The app expects `models/sentiment_model.pkl` and `models/vectorizer.pkl` to exist (run the training script first).
 
 ---
 
