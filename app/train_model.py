@@ -8,14 +8,36 @@ import os
 
 def load_dataset():
     """
-    Loads a pre-labeled finance sentiment dataset.
-    You can replace this with your own labeled CSV later.
+    Loads the Financial PhraseBank dataset automatically using KaggleHub.
+    Falls back to local CSV if offline or fetch fails.
     """
-    url = "https://raw.githubusercontent.com/ankurzing/sentiment-analysis-for-financial-news/master/all-data.csv"
-    df = pd.read_csv(url, names=["sentiment", "headline"])
-    df["sentiment"] = df["sentiment"].str.strip()
-    print(f"✅ Loaded {len(df)} labeled samples.")
-    return df
+    import os
+    import pandas as pd
+    import kagglehub
+
+    try:
+        print("📦 Downloading Financial PhraseBank dataset via KaggleHub...")
+        path = kagglehub.dataset_download("ankurzing/sentiment-analysis-for-financial-news")
+        dataset_path = os.path.join(path, "all-data.csv")
+
+        # Read using correct encoding
+        df = pd.read_csv(dataset_path, names=["sentiment", "headline"], encoding="ISO-8859-1")
+        df["sentiment"] = df["sentiment"].str.strip().str.lower()
+
+        print(f"✅ Loaded {len(df)} samples from Financial PhraseBank (Kaggle).")
+        return df
+
+    except Exception as e:
+        print(f"⚠️ Could not fetch dataset via KaggleHub: {e}")
+        print("📄 Falling back to local dataset...")
+        file_path = os.path.join(os.path.dirname(__file__), "../data/processed/all-data.csv")
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"❌ Dataset not found at {file_path}. Please create it first.")
+        df = pd.read_csv(file_path, names=["sentiment", "headline"])
+        df["sentiment"] = df["sentiment"].str.strip().str.lower()
+        print(f"✅ Loaded {len(df)} samples from local dataset.")
+        return df
+
 
 def train_model(df):
     X_train, X_test, y_train, y_test = train_test_split(
@@ -34,9 +56,20 @@ def train_model(df):
     print(classification_report(y_test, preds))
 
     # Save model + vectorizer
-    os.makedirs("../models", exist_ok=True)
-    joblib.dump(model, "../models/sentiment_model.pkl")
-    joblib.dump(vectorizer, "../models/vectorizer.pkl")
+    MODEL_DIR = os.path.join(os.path.dirname(__file__), "../models")
+    os.makedirs(MODEL_DIR, exist_ok=True)
+
+    model_path = os.path.join(MODEL_DIR, "sentiment_model.pkl")
+    vectorizer_path = os.path.join(MODEL_DIR, "vectorizer.pkl")
+
+    print(f"DEBUG: Absolute model save path: {os.path.abspath(model_path)}")
+    print(f"DEBUG: Current working directory: {os.getcwd()}")
+
+    joblib.dump(model, model_path)
+    joblib.dump(vectorizer, vectorizer_path)
+
+    print(f"💾 Model saved at: {model_path}")
+    print(f"💾 Vectorizer saved at: {vectorizer_path}")
     print("💾 Model and vectorizer saved in ../models/")
 
 if __name__ == "__main__":
